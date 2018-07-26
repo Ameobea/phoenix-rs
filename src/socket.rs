@@ -2,13 +2,13 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
-use websocket::{Message, OwnedMessage};
-use websocket::client::ClientBuilder;
 use serde_json;
+use websocket::client::ClientBuilder;
+use websocket::{Message, OwnedMessage};
 
 use chan::Channel;
-use message::{Message as PhoenixMessage};
-use event::{PhoenixEvent, Event};
+use event::{Event, PhoenixEvent};
+use message::Message as PhoenixMessage;
 
 pub struct Phoenix {
 	tx: Sender<OwnedMessage>,
@@ -37,7 +37,7 @@ impl Phoenix {
 					Ok(m) => {
 						debug!("Send Loop: {:?}", m);
 						m
-					},
+					}
 					Err(e) => {
 						error!("Send Loop: {:?}", e);
 						return;
@@ -86,7 +86,7 @@ impl Phoenix {
 						let _ = tx_1.send(OwnedMessage::Close(None));
 						return;
 					}
-					
+
 					OwnedMessage::Ping(data) => {
 						match tx_1.send(OwnedMessage::Pong(data)) {
 							// Send a pong in response
@@ -102,36 +102,30 @@ impl Phoenix {
 					OwnedMessage::Text(data) => {
 						let v: PhoenixMessage = serde_json::from_str(&data).unwrap();
 						send.send(v);
-					},
-					
-					message => debug!("Receive Loop: {:?}", message)
+					}
+
+					message => debug!("Receive Loop: {:?}", message),
 				}
 			}
 		});
 
-        let tx_h = tx.clone();
-        thread::spawn(move || {
-            loop {
+		let tx_h = tx.clone();
+		thread::spawn(move || loop {
+			let msg = PhoenixMessage {
+				topic: "phoenix".to_owned(),
+				event: Event::Defined(PhoenixEvent::Heartbeat),
+				reference: None,
+				join_ref: None,
+				payload: serde_json::from_str("{}").unwrap(),
+			};
 
-                let msg = PhoenixMessage {
-                    topic: "phoenix".to_owned(),
-                    event: Event::Defined(PhoenixEvent::Heartbeat),
-                    reference: None,
-                    join_ref: None,
-                    payload: serde_json::from_str("{}").unwrap(),
-                };
+			tx_h.send(OwnedMessage::Text(serde_json::to_string(&msg).unwrap()))
+				.unwrap();
 
+			thread::sleep(time::Duration::from_secs(30));
+		});
 
-                tx_h
-                    .send(OwnedMessage::Text(serde_json::to_string(&msg).unwrap()))
-                    .unwrap();
-
-                thread::sleep(time::Duration::from_secs(30));
-            }
-        });
-
-
-		Phoenix{
+		Phoenix {
 			tx: tx.clone(),
 			count: 0,
 			channels: channels.clone(),
@@ -140,8 +134,12 @@ impl Phoenix {
 	}
 
 	pub fn channel(&mut self, topic: &str) -> Arc<Mutex<Channel>> {
-		self.count = self.count+1;
-		let chan = Arc::new(Mutex::new(Channel::new(topic, self.tx.clone(), &format!("{}", self.count))));
+		self.count = self.count + 1;
+		let chan = Arc::new(Mutex::new(Channel::new(
+			topic,
+			self.tx.clone(),
+			&format!("{}", self.count),
+		)));
 		let mut channels = self.channels.lock().unwrap();
 		channels.push(chan.clone());
 		chan

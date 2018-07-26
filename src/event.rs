@@ -1,34 +1,69 @@
-use std::fmt;
+#[cfg(feature = "json")]
 use serde_json;
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(untagged)]
+#[cfg(feature = "protobuf")]
+use protos::channel_message::{
+    Event as ProtoEvent, Event_oneof_payload as ProtoEventPayload,
+    PhoenixEvent as ProtoPhoenixEvent,
+};
+
+#[derive(Debug)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(untagged))]
 pub enum Event {
     Defined(PhoenixEvent),
     Custom(String),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum PhoenixEvent {
-    #[serde(rename="phx_join")]
+    #[cfg_attr(feature = "json", serde(rename = "phx_join"))]
     Join,
-    #[serde(rename="phx_close")]
+    #[cfg_attr(feature = "json", serde(rename = "phx_close"))]
     Close,
-    #[serde(rename="phx_reply")]
+    #[cfg_attr(feature = "json", serde(rename = "phx_reply"))]
     Reply,
-    #[serde(rename="heartbeat")]
-    Heartbeat
+    #[cfg_attr(feature = "json", serde(rename = "heartbeat"))]
+    Heartbeat,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Test {
-    event: Event
+#[cfg(feature = "protobuf")]
+impl Into<ProtoPhoenixEvent> for PhoenixEvent {
+    fn into(self) -> ProtoPhoenixEvent {
+        match self {
+            PhoenixEvent::Close => ProtoPhoenixEvent::Close,
+            PhoenixEvent::Heartbeat => ProtoPhoenixEvent::Heartbeat,
+            PhoenixEvent::Join => ProtoPhoenixEvent::Join,
+            PhoenixEvent::Reply => ProtoPhoenixEvent::Reply,
+        }
+    }
 }
 
+#[cfg(feature = "protobuf")]
+impl Into<ProtoEvent> for Event {
+    fn into(self) -> ProtoEvent {
+        let mut evt = ProtoEvent::new();
+        evt.payload = Some(match self {
+            Event::Defined(phoenix_evt) => ProtoEventPayload::phoenix_event(phoenix_evt.into()),
+            Event::Custom(custom_evt) => ProtoEventPayload::custom_event(custom_evt),
+        });
 
+        evt
+    }
+}
+
+#[cfg(feature = "json")]
 #[test]
 fn test_event_serialization() {
-    let t = Test{event: Event::Custom("blablabla".to_string())};
+    #[derive(Serialize, Deserialize)]
+    struct Test {
+        event: Event,
+    }
+
+    let t = Test {
+        event: Event::Custom("blablabla".to_string()),
+    };
     let val = serde_json::to_string(&t).unwrap();
     println!("{}", val);
     assert_eq!(val, "{\"event\":\"blablabla\"}");
