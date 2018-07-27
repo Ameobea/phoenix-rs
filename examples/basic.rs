@@ -1,15 +1,14 @@
 extern crate phoenix;
-#[macro_use]
 extern crate serde_json;
 
 extern crate env_logger;
 
+use phoenix::{Event, Phoenix};
 use std::{thread, time};
-use phoenix::{Phoenix, Event};
 
-fn main() {
+pub fn main() {
     env_logger::init();
-    
+
     let url = "ws://localhost:4000/socket";
 
     // Simulate a user
@@ -19,13 +18,13 @@ fn main() {
 
         {
             let mut device_chan = mutex_chan.lock().unwrap();
-            device_chan.join();
+            device_chan.join().expect("Error while joining channel");
         }
 
         loop {
             match phx.out.recv() {
                 Ok(msg) => println!("user1: {:?}", msg),
-                Err(_err) => ()//println!("{:?}", err)
+                Err(_err) => (), //println!("{:?}", err)
             }
         }
     });
@@ -38,14 +37,19 @@ fn main() {
 
     {
         let mut device_chan = mutex_chan.lock().unwrap();
-        device_chan.join();
-        device_chan.send(Event::Custom("new_msg".to_string()), serde_json::from_str(r#"{"body": "Hello"}"#).unwrap());
+        device_chan.join().expect("Error while joining channel");
+        device_chan
+            .send(
+                Event::Custom("new_msg".to_string()),
+                serde_json::from_str(r#"{"body": "Hello"}"#).unwrap(),
+            )
+            .expect("Error while sending message to server");
     }
 
     loop {
         match phx.out.recv() {
             Ok(msg) => println!("user2: {:?}", msg),
-            Err(_err) => ()//println!("{:?}", err)
+            Err(_err) => (), //println!("{:?}", err)
         }
     }
 }

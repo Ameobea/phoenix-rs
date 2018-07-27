@@ -1,6 +1,3 @@
-#[cfg(feature = "json")]
-use serde_json;
-
 #[cfg(feature = "protobuf")]
 use protos::channel_message::{
     Event as ProtoEvent, Event_oneof_payload as ProtoEventPayload,
@@ -56,6 +53,8 @@ impl Into<ProtoEvent> for Event {
 #[cfg(feature = "json")]
 #[test]
 fn test_event_serialization() {
+    use serde_json;
+
     #[derive(Serialize, Deserialize)]
     struct Test {
         event: Event,

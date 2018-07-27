@@ -14,10 +14,6 @@ version = "0.2.0"
 [badges.travis-ci]
 repository = "laibulle/phoenix-rs"
 
-[[bin]]
-name = "phoenix-example"
-path = "examples/basic.rs"
-
 [build-dependencies]
 protobuf-codegen-pure = "2.0.3"
 
@@ -42,7 +38,7 @@ optional = true
 version = "1.0.24"
 
 [features]
-default = ["protobuf"]
+default = ["json"]
 json = ["serde", "serde_json", "serde_derive"]
 
 [lib]

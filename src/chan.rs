@@ -32,7 +32,7 @@ pub struct Channel {
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "json"))]
 fn msg_to_channel_msg(msg: Message) -> Result<ChannelMessage, Box<Error>> {
-    OwnedMessage::Text(serde_json::to_string(&msg)?)
+    Ok(OwnedMessage::Text(serde_json::to_string(&msg)?))
 }
 
 #[cfg(all(target_arch = "wasm32", feature = "json"))]

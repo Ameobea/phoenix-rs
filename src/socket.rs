@@ -101,7 +101,7 @@ impl Phoenix {
 					// Say what we received
 					OwnedMessage::Text(data) => {
 						let v: PhoenixMessage = serde_json::from_str(&data).unwrap();
-						send.send(v);
+						send.send(v).expect("Error sending message");
 					}
 
 					message => debug!("Receive Loop: {:?}", message),
