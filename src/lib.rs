@@ -1,4 +1,4 @@
-#![feature(box_syntax)]
+#![feature(box_syntax, never_type)]
 
 #[cfg_attr(
     all(not(target_arch = "wasm32"), feature = "json"),

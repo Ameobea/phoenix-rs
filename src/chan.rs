@@ -3,7 +3,8 @@ use serde_json;
 #[cfg(feature = "json")]
 use serde_json::Value;
 use std::error::Error;
-use std::sync::mpsc::Sender;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::mpsc::Sender as ChannelSender;
 
 #[cfg(feature = "protobuf")]
 use protobuf::Message as ProtoMessage;
@@ -24,9 +25,25 @@ type ChannelMessage = String;
 #[cfg(all(target_arch = "wasm32", feature = "protobuf"))]
 type ChannelMessage = Vec<u8>;
 
+#[cfg(not(target_arch = "wasm32"))]
+type Sender = ChannelSender<ChannelMessage>;
+
+#[cfg(target_arch = "wasm32")]
+pub struct FauxSender<T>(fn(T) -> ());
+
+#[cfg(target_arch = "wasm32")]
+impl<T> FauxSender<T> {
+    pub fn send(&self, msg: T) -> Result<(), !> {
+        Ok((self.0)(msg))
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+type Sender = FauxSender<ChannelMessage>;
+
 pub struct Channel {
     topic: String,
-    tx: Sender<ChannelMessage>,
+    tx: Sender,
     reference: String,
 }
 
@@ -63,10 +80,20 @@ fn null_value() -> Value {
 }
 
 impl Channel {
-    pub fn new(topic: &str, tx: Sender<ChannelMessage>, reference: &str) -> Self {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new(topic: &str, tx: Sender, reference: &str) -> Self {
         Channel {
             topic: topic.to_owned(),
             tx,
+            reference: reference.to_owned(),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(topic: &str, tx: fn(ChannelMessage) -> (), reference: &str) -> Self {
+        Channel {
+            topic: topic.to_owned(),
+            tx: FauxSender(tx),
             reference: reference.to_owned(),
         }
     }
@@ -109,6 +136,7 @@ impl Channel {
         self.send_msg(msg)
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(unreachable_code))]
     fn send_msg(&self, msg: Message) -> Result<(), Box<Error>> {
         let chan_msg = msg_to_channel_msg(msg)?;
         self.tx
