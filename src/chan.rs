@@ -42,7 +42,8 @@ fn msg_to_channel_msg(msg: Message) -> Result<ChannelMessage, Box<Error>> {
 
 #[cfg(all(target_arch = "wasm32", feature = "protobuf"))]
 fn msg_to_channel_msg(msg: Message) -> Result<ChannelMessage, Box<Error>> {
-    Ok(msg.into())
+    let proto_msg: ProtoChannelMessage = msg.into();
+    Ok(proto_msg.write_to_bytes()?)
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "protobuf"))]
